@@ -5,6 +5,8 @@ namespace nglib{
 }
 
 #include <cstdio>
+#include <string.h>
+#include <stdio.h>
 #include <iostream>
 #include <getopt.h>
 #include <unistd.h>
@@ -17,6 +19,8 @@ using namespace nglib;
 
 bool meshGMSH(string soubor);
 void writeGMSH(string out);
+
+bool meshNG(string soubor);
 
 int main(int argc, char **argv)
 {
@@ -67,6 +71,7 @@ int main(int argc, char **argv)
 	infile=infile+"."+informat;
     bool end = true;
     if(lib=="gmsh" || lib=="GMSH")library=1;
+    if(lib=="ng" || lib=="NG")library=2;
     switch (library){
         case 1: {
         	gmsh::initialize();
@@ -76,8 +81,87 @@ int main(int argc, char **argv)
             break;
         }
         case 2: {
-        	Ng_Init();
-        	Ng_Exit();
+        	char file[infile.length()+1];
+        	strcpy(file,infile.c_str());
+
+        	   Ng_Mesh *mesh;
+        	   Ng_STL_Geometry *stl_geom;
+        	   Ng_Result ng_res;
+
+        	   Ng_Init();
+        	   mesh = Ng_NewMesh();
+
+        	   int np, ne;
+        	   stl_geom = Ng_STL_LoadGeometry(file);
+        	   if(!stl_geom)
+        	   {
+        	      cout << "Error reading in STL File: " << infile << endl;
+        		  return 1;
+        	   }
+        	   cout << "Successfully loaded STL File: " << infile << endl;
+
+        	   Ng_Meshing_Parameters mp;
+        	   mp.maxh = 1.0e+6;
+        	   mp.fineness = 0.4;
+        	   mp.second_order = 0;
+
+        	   cout << "Initialise the STL Geometry structure...." << endl;
+        	   ng_res = Ng_STL_InitSTLGeometry(stl_geom);
+        	   if(ng_res != NG_OK)
+        	   {
+        	      cout << "Error Initialising the STL Geometry....Aborting!!" << endl;
+        		   return 1;
+        	   }
+
+        	   cout << "Start Edge Meshing...." << endl;
+        	   ng_res = Ng_STL_MakeEdges(stl_geom, mesh, &mp);
+        	   if(ng_res != NG_OK)
+        	   {
+        	      cout << "Error in Edge Meshing....Aborting!!" << endl;
+        		   return 1;
+        	   }
+
+        	   cout << "Start Surface Meshing...." << endl;
+        	   ng_res = Ng_STL_GenerateSurfaceMesh(stl_geom, mesh, &mp);
+        	   if(ng_res != NG_OK)
+        	   {
+        	      cout << "Error in Surface Meshing....Aborting!!" << endl;
+        		   return 1;
+        	   }
+
+        	   cout << "Start Volume Meshing...." << endl;
+        	   ng_res = Ng_GenerateVolumeMesh (mesh, &mp);
+        	   if(ng_res != NG_OK)
+        	   {
+        	      cout << "Error in Volume Meshing....Aborting!!" << endl;
+        		  return 1;
+        	   }
+
+        	   cout << "Meshing successfully completed....!!" << endl;
+
+        	   // volume mesh output
+        	   np = Ng_GetNP(mesh);
+        	   cout << "Points: " << np << endl;
+
+        	   ne = Ng_GetNE(mesh);
+        	   cout << "Elements: " << ne << endl;
+
+        	   cout << "Saving Mesh in VOL Format...." << endl;
+        	   Ng_SaveMesh(mesh,"test.vol");
+
+
+        	   // refinement without geomety adaption:
+        	   // Ng_Uniform_Refinement (mesh);
+
+        	   // refinement with geomety adaption:
+        	   Ng_STL_Uniform_Refinement (stl_geom, mesh);
+
+        	   cout << "elements after refinement: " << Ng_GetNE(mesh) << endl;
+        	   cout << "points   after refinement: " << Ng_GetNP(mesh) << endl;
+
+        	   Ng_SaveMesh(mesh,"test_ref.vol");
+       		Ng_Exit();
+       		end=true;
         	break;
         }
         default:
@@ -90,9 +174,14 @@ int main(int argc, char **argv)
             	case 1: {
             		writeGMSH(save);
             		gmsh::finalize();
-
+            		cout<<"Finish"<<endl;
             		break;
             	}
+            	case 2: {
+            		break;
+            	}
+            	default:
+            	    cout<<"Wrong chose";
     	    }
     }
 	return 0;
