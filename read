@@ -1,0 +1,7 @@
+./waf
+
+./build/mesher --input=t13_data --informat=stl --library=NG --output=gmsh --outformat=vtk
+
+./build/mesher --input=object --informat=stl --library=GMSH --output=gmsh --outformat=vtk
+
+./build/mesher --input=hinge --informat=stl --library=NG --output=gmsh --outformat=vtk
