@@ -73,6 +73,7 @@ int main(int argc, char **argv)
     bool end = true;
     if(lib=="gmsh" || lib=="GMSH")library=1;
     if(lib=="ng" || lib=="NG")library=2;
+    if(lib=="tetgen" || lib=="TETGEN")library=3;
     switch (library){
         case 1: {
         	gmsh::initialize();
@@ -165,6 +166,27 @@ int main(int argc, char **argv)
        		end=true;*/
         	break;
         }
+        case 3: {
+        	char file[infile.length()+1];
+        	strcpy(file,infile.c_str());
+        	cout << file << endl;
+        	/*tetgenio in, out;
+
+        	in.load_stl(file);
+        	in.save_nodes("barin");
+       	  	in.save_poly("barin");
+
+       	  	tetgenbehavior tetgen;
+
+       	  	tetrahedralize(&tetgen, &in, &out);
+
+       	  	// Output mesh to files 'barout.node', 'barout.ele' and 'barout.face'.
+       	  	out.save_nodes("barout");
+       	  	out.save_elements("barout");
+       	  	out.save_faces("barout");*/
+       	  	end=true;
+       	  	break;
+        }
         default:
             cout<<"Wrong chose";
     }
@@ -179,6 +201,9 @@ int main(int argc, char **argv)
             		break;
             	}
             	case 2: {
+            		break;
+            	}
+            	case 3: {
             		break;
             	}
             	default:
