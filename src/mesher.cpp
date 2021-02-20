@@ -21,7 +21,7 @@ using namespace nglib;
 bool meshGMSH(string soubor);
 void writeGMSH(string out);
 
-bool meshNG(string soubor);
+void writeTET(string soubor,tetgenio outt);
 
 int main(int argc, char **argv)
 {
@@ -74,6 +74,7 @@ int main(int argc, char **argv)
     if(lib=="gmsh" || lib=="GMSH")library=1;
     if(lib=="ng" || lib=="NG")library=2;
     if(lib=="tetgen" || lib=="TETGEN")library=3;
+    tetgenio out, in;
     switch (library){
         case 1: {
         	gmsh::initialize();
@@ -167,23 +168,29 @@ int main(int argc, char **argv)
         	break;
         }
         case 3: {
-        	char file[infile.length()+1];
+        	//string save=outfile+"."+outformat;
+        	char file[infile.length()];
         	strcpy(file,infile.c_str());
-        	cout << file << endl;
-        	/*tetgenio in, out;
+
+
 
         	in.load_stl(file);
         	in.save_nodes("barin");
-       	  	in.save_poly("barin");
-
+        	in.save_poly("barin");
        	  	tetgenbehavior tetgen;
+       	  	tetgen.object=tetgenbehavior::STL;
+       	  	//strcpy(tetgen.outfilename,save.c_str());
+       	  	//tetgen.vtkview=1;
+
 
        	  	tetrahedralize(&tetgen, &in, &out);
+
 
        	  	// Output mesh to files 'barout.node', 'barout.ele' and 'barout.face'.
        	  	out.save_nodes("barout");
        	  	out.save_elements("barout");
-       	  	out.save_faces("barout");*/
+       	  	out.save_faces("barout");
+
        	  	end=true;
        	  	break;
         }
@@ -204,6 +211,8 @@ int main(int argc, char **argv)
             		break;
             	}
             	case 3: {
+            		writeTET(save,out);
+            		cout<<"Finish"<<endl;
             		break;
             	}
             	default:
@@ -377,7 +386,31 @@ void writeGMSH(string out){
 
 }
 
-
+void writeTET(string soubor,tetgenio outt){
+	ofstream sfile;
+	sfile.open(soubor);
+	sfile << "# vtk DataFile Version 2.0"<< endl;
+	sfile <<"tetgen, Created by TETGEN"<<endl;
+	sfile <<"ASCII"<<endl;
+	sfile <<"DATASET UNSTRUCTURED_GRID"<<endl;
+	sfile <<"POINTS "<<outt.numberofpoints<<" double"<<endl;
+	for (int i = 0; i < outt.numberofpoints; i++) {
+	    sfile <<setprecision(20)<<outt.pointlist[i * 3]<<" "<<outt.pointlist[i * 3 + 1]<<" "<<outt.pointlist[i * 3 + 2]<<endl;
+	  }
+	sfile <<"CELLS "<<outt.numberoftetrahedra<<" "<<outt.numberoftetrahedra*5<<endl;
+	for (int i = 0; i < outt.numberoftetrahedra; i++) {
+	   sfile<<"4 ";
+	   for (int j = 0; j < outt.numberofcorners; j++) {
+		   sfile<<outt.tetrahedronlist[i * outt.numberofcorners + j]<<" ";
+	      }
+	   sfile<<endl;
+	}
+	sfile <<"CELL_TYPES "<< outt.numberoftetrahedra<<endl;
+	for (int i = 0; i < outt.numberoftetrahedra; i++) {
+		sfile<<"10"<<endl;
+	}
+	sfile.close();
+}
 
 
 
