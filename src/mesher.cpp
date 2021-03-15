@@ -1,8 +1,5 @@
 
 #include "gmsh.h"
-namespace nglib{
-#include "nglib.h"
-}
 #include "tetgen.h"
 
 #include <cstdio>
@@ -16,12 +13,12 @@ namespace nglib{
 
 
 using namespace std;
-using namespace nglib;
+
 
 bool meshGMSH(string soubor);
 void writeGMSH(string out);
 
-void writeTET(string soubor,tetgenio outt);
+void writeTET(string soubor,tetgenio mesh);
 
 int main(int argc, char **argv)
 {
@@ -36,7 +33,7 @@ int main(int argc, char **argv)
 			{"library", required_argument , 0,'l'}
 	};
 	int long_index=0;
-	while((opt = getopt_long(argc, argv, "i:o:if:of:l:",long_options, &long_index))!= -1){
+	while((opt = getopt_long(argc, argv, "i:o:a:b:l:",long_options, &long_index))!= -1){
 		switch(opt){
 		case 'i':{
 			cout<< "Input file: "<<optarg<<endl;
@@ -72,9 +69,8 @@ int main(int argc, char **argv)
 	infile=infile+"."+informat;
     bool end = true;
     if(lib=="gmsh" || lib=="GMSH")library=1;
-    if(lib=="ng" || lib=="NG")library=2;
-    if(lib=="tetgen" || lib=="TETGEN")library=3;
-    tetgenio out, in;
+    if(lib=="tetgen" || lib=="TETGEN")library=2;
+    tetgenio mesh, geo;
     switch (library){
         case 1: {
         	gmsh::initialize();
@@ -84,113 +80,15 @@ int main(int argc, char **argv)
             break;
         }
         case 2: {
-        	/*char file[infile.length()+1];
-        	strcpy(file,infile.c_str());
-
-        	   Ng_Mesh *mesh;
-        	   Ng_STL_Geometry *stl_geom;
-        	   Ng_Result ng_res;
-
-        	   Ng_Init();
-        	   mesh = Ng_NewMesh();
-
-        	   int np, ne;
-        	   stl_geom = Ng_STL_LoadGeometry(file);
-        	   if(!stl_geom)
-        	   {
-        	      cout << "Error reading in STL File: " << infile << endl;
-        		  return 1;
-        	   }
-        	   cout << "Successfully loaded STL File: " << infile << endl;
-
-        	   Ng_Meshing_Parameters mp;
-        	   mp.maxh = 1.0e+6;
-        	   mp.fineness = 0.4;
-        	   mp.second_order = 0;
-
-        	   cout << "Initialise the STL Geometry structure...." << endl;
-        	   ng_res = Ng_STL_InitSTLGeometry(stl_geom);
-        	   if(ng_res != NG_OK)
-        	   {
-        	      cout << "Error Initialising the STL Geometry....Aborting!!" << endl;
-        		   return 1;
-        	   }
-
-        	   cout << "Start Edge Meshing...." << endl;
-        	   ng_res = Ng_STL_MakeEdges(stl_geom, mesh, &mp);
-        	   if(ng_res != NG_OK)
-        	   {
-        	      cout << "Error in Edge Meshing....Aborting!!" << endl;
-        		   return 1;
-        	   }
-
-        	   cout << "Start Surface Meshing...." << endl;
-        	   ng_res = Ng_STL_GenerateSurfaceMesh(stl_geom, mesh, &mp);
-        	   if(ng_res != NG_OK)
-        	   {
-        	      cout << "Error in Surface Meshing....Aborting!!" << endl;
-        		   return 1;
-        	   }
-
-        	   cout << "Start Volume Meshing...." << endl;
-        	   ng_res = Ng_GenerateVolumeMesh (mesh, &mp);
-        	   if(ng_res != NG_OK)
-        	   {
-        	      cout << "Error in Volume Meshing....Aborting!!" << endl;
-        		  return 1;
-        	   }
-
-        	   cout << "Meshing successfully completed....!!" << endl;
-
-        	   // volume mesh output
-        	   np = Ng_GetNP(mesh);
-        	   cout << "Points: " << np << endl;
-
-        	   ne = Ng_GetNE(mesh);
-        	   cout << "Elements: " << ne << endl;
-
-        	   cout << "Saving Mesh in VOL Format...." << endl;
-        	   Ng_SaveMesh(mesh,"test.vol");
-
-
-        	   // refinement without geomety adaption:
-        	   // Ng_Uniform_Refinement (mesh);
-
-        	   // refinement with geomety adaption:
-        	   Ng_STL_Uniform_Refinement (stl_geom, mesh);
-
-        	   cout << "elements after refinement: " << Ng_GetNE(mesh) << endl;
-        	   cout << "points   after refinement: " << Ng_GetNP(mesh) << endl;
-
-        	   Ng_SaveMesh(mesh,"test_ref.vol");
-       		Ng_Exit();
-       		end=true;*/
-        	break;
-        }
-        case 3: {
-        	//string save=outfile+"."+outformat;
         	char file[infile.length()];
         	strcpy(file,infile.c_str());
 
+        	geo.load_stl(file);
 
-
-        	in.load_stl(file);
-        	in.save_nodes("barin");
-        	in.save_poly("barin");
        	  	tetgenbehavior tetgen;
        	  	tetgen.object=tetgenbehavior::STL;
-       	  	//strcpy(tetgen.outfilename,save.c_str());
-       	  	//tetgen.vtkview=1;
 
-
-       	  	tetrahedralize(&tetgen, &in, &out);
-
-
-       	  	// Output mesh to files 'barout.node', 'barout.ele' and 'barout.face'.
-       	  	out.save_nodes("barout");
-       	  	out.save_elements("barout");
-       	  	out.save_faces("barout");
-
+       	  	tetrahedralize(&tetgen, &geo, &mesh);
        	  	end=true;
        	  	break;
         }
@@ -208,10 +106,7 @@ int main(int argc, char **argv)
             		break;
             	}
             	case 2: {
-            		break;
-            	}
-            	case 3: {
-            		writeTET(save,out);
+            		writeTET(save,mesh);
             		cout<<"Finish"<<endl;
             		break;
             	}
@@ -255,6 +150,9 @@ bool meshGMSH(string soubor){
 	  gmsh::model::mesh::field::setAsBackgroundMesh(f);
 	  gmsh::model::mesh::generate(3);
 
+	  //gmsh::model::mesh::recombine();
+	  //gmsh::option::setNumber("Mesh.SubdivisionAlgorithm", 1);
+	  //gmsh::model::mesh::refine();
 	  return true;
 }
 
@@ -386,28 +284,32 @@ void writeGMSH(string out){
 
 }
 
-void writeTET(string soubor,tetgenio outt){
+void writeTET(string soubor,tetgenio mesh){
 	ofstream sfile;
 	sfile.open(soubor);
 	sfile << "# vtk DataFile Version 2.0"<< endl;
 	sfile <<"tetgen, Created by TETGEN"<<endl;
 	sfile <<"ASCII"<<endl;
 	sfile <<"DATASET UNSTRUCTURED_GRID"<<endl;
-	sfile <<"POINTS "<<outt.numberofpoints<<" double"<<endl;
-	for (int i = 0; i < outt.numberofpoints; i++) {
-	    sfile <<setprecision(20)<<outt.pointlist[i * 3]<<" "<<outt.pointlist[i * 3 + 1]<<" "<<outt.pointlist[i * 3 + 2]<<endl;
-	  }
-	sfile <<"CELLS "<<outt.numberoftetrahedra<<" "<<outt.numberoftetrahedra*5<<endl;
-	for (int i = 0; i < outt.numberoftetrahedra; i++) {
-	   sfile<<"4 ";
-	   for (int j = 0; j < outt.numberofcorners; j++) {
-		   sfile<<outt.tetrahedronlist[i * outt.numberofcorners + j]<<" ";
-	      }
-	   sfile<<endl;
+	sfile <<"POINTS " << mesh.numberofpoints << " double"<<endl;
+	for (int p = 0; p < mesh.numberofpoints; p++) {
+			sfile << mesh.pointlist[p * 3] << " " << mesh.pointlist[p * 3 + 1] << " " << mesh.pointlist[p * 3 + 2] <<endl;
+		}
+	sfile <<endl;
+
+	sfile << "CELLS " << mesh.numberoftetrahedra << " " << mesh.numberoftetrahedra + 4 * mesh.numberoftetrahedra <<endl;
+	for (int e = 0; e < mesh.numberoftetrahedra; e++) {
+		sfile << "4";
+		for (int en = 0; en < 4; ++en) {
+			sfile << " " << mesh.tetrahedronlist[4 * e + en] - 1;
+		}
+		sfile <<endl;
 	}
-	sfile <<"CELL_TYPES "<< outt.numberoftetrahedra<<endl;
-	for (int i = 0; i < outt.numberoftetrahedra; i++) {
-		sfile<<"10"<<endl;
+	sfile <<endl;
+
+	sfile << "CELL_TYPES " << mesh.numberoftetrahedra <<endl;
+	for (int e = 0; e < mesh.numberoftetrahedra; e++) {
+		sfile << "10"<<endl;
 	}
 	sfile.close();
 }
