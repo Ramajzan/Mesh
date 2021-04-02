@@ -78,11 +78,11 @@ int main(int argc, char **argv)
 	Ng_Meshing_Parameters mp;
 
 		//!< Switch to enable / disable usage of local mesh size modifiers
-	mp.uselocalh=1;
+	mp.uselocalh=true;
 		//!< Maximum global mesh size allowed
 	mp.maxh=2000.0;
 		//!< Minimum global mesh size allowed
-	mp.minh;
+	mp.minh=0.0;
 		//!< Mesh density: 0...1 (0 => coarse; 1 => fine)
 	mp.fineness=0.9;
 		//!< Mesh grading: 0...1 (0 => uniform mesh; 1 => aggressive local grading)
@@ -94,12 +94,12 @@ int main(int argc, char **argv)
 	mp.elementspercurve;
 
 		//!< Enable / Disable mesh refinement at close edges
-	mp.closeedgeenable=1;
+	mp.closeedgeenable=true;
 		//!< Factor to use for refinement at close edges (larger => finer)
-	mp.closeedgefact=100.0;
+	mp.closeedgefact;
 
 		//!< Enable / Disable user defined minimum edge length for edge subdivision
-	mp.minedgelenenable;
+	mp.minedgelenenable=true;
 		//!< Minimum edge length to use while subdividing the edges (default = 1e-4)
 	mp.minedgelen;
 
@@ -112,9 +112,9 @@ int main(int argc, char **argv)
 	mp.meshsize_filename;
 
 		//!< Enable / Disable automatic surface mesh optimization
-	mp.optsurfmeshenable;
+	mp.optsurfmeshenable=true;
 		//!< Enable / Disable automatic volume mesh optimization
-	mp.optvolmeshenable;
+	mp.optvolmeshenable=true;
 
 		//!< Number of optimize steps to use for 3-D mesh optimization
 	mp.optsteps_3d;

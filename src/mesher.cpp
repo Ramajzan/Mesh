@@ -11,6 +11,7 @@
 #include <fstream>
 #include <iomanip>
 
+#define TETLIBRARY
 
 using namespace std;
 
@@ -88,6 +89,11 @@ int main(int argc, char **argv)
        	  	tetgenbehavior tetgen;
        	  	tetgen.object=tetgenbehavior::STL;
 
+       	  	// Settings of mesh
+       	  	//tetgen.plc=1;
+       	  	//tetgen.quality=1;
+       	  	//tetgen.minratio=1.2;
+       	  	//tetgen.mindihedral=0;
        	  	tetrahedralize(&tetgen, &geo, &mesh);
        	  	end=true;
        	  	break;
@@ -148,8 +154,18 @@ bool meshGMSH(string soubor){
 	  else
 	    gmsh::model::mesh::field::setString(f, "F", "4");
 	  gmsh::model::mesh::field::setAsBackgroundMesh(f);
+
+	  // settings of mesh
+	  //gmsh::option::setNumber("Mesh.CharacteristicLengthExtendFromBoundary", 10);
+	  //gmsh::option::setNumber("Mesh.CharacteristicLengthFromPoints", 0.5);
+	  //gmsh::option::setNumber("Mesh.CharacteristicLengthFromCurvature", 10);
+	  //gmsh::option::setNumber("Mesh.CharacteristicLengthMin", 1.4);
+	  //gmsh::option::setNumber("Mesh.CharacteristicLengthMax", 1.4);
+	  //gmsh::model::mesh::setTransfiniteAutomatic();
+
 	  gmsh::model::mesh::generate(3);
 
+	  // Refined mesh
 	  //gmsh::model::mesh::recombine();
 	  //gmsh::option::setNumber("Mesh.SubdivisionAlgorithm", 1);
 	  //gmsh::model::mesh::refine();
