@@ -10,19 +10,24 @@
 #include <unistd.h>
 #include <fstream>
 #include <iomanip>
+#include <algorithm>
+
+#include <ctime>
 
 #define TETLIBRARY
 
 using namespace std;
 
 
-bool meshGMSH(string soubor);
+bool meshGMSH(string soubor, string informat);
 void writeGMSH(string out);
 
 void writeTET(string soubor,tetgenio mesh);
 
 int main(int argc, char **argv)
 {
+	clock_t start;
+	double duration;
 	int opt = 0;
 	string infile,outfile,informat,outformat,lib;
 	int library=0;
@@ -72,12 +77,13 @@ int main(int argc, char **argv)
     if(lib=="gmsh" || lib=="GMSH")library=1;
     if(lib=="tetgen" || lib=="TETGEN")library=2;
     tetgenio mesh, geo;
+    start=clock();
     switch (library){
         case 1: {
         	gmsh::initialize();
         	gmsh::option::setNumber("General.Terminal", 1);
         	gmsh::model::add("model");
-            end=meshGMSH(infile);
+        	end=meshGMSH(infile,informat);
             break;
         }
         case 2: {
@@ -120,56 +126,123 @@ int main(int argc, char **argv)
             	    cout<<"Wrong chose";
     	    }
     }
+    duration=(clock()-start)/(double) CLOCKS_PER_SEC;
+    cout<<"Doba meshe: "<<duration<<endl;
 	return 0;
 }
 
-bool meshGMSH(string soubor){
+bool meshGMSH(string soubor , string informat){
+	if(informat=="stl"){
+		try {
+			gmsh::merge(soubor);
+		} catch(...) {
+			gmsh::logger::write("Could not load file");
+			gmsh::finalize();
+			return false;
+		}
+		double angle = 40;
+		bool forceParametrizablePatches = false;
+		bool includeBoundary = true;
+		gmsh::model::mesh::classifySurfaces(angle * M_PI / 180., includeBoundary,
+	                                      forceParametrizablePatches);
+		gmsh::model::mesh::createGeometry();
+		vector<pair<int, int> > s;
+		gmsh::model::getEntities(s, 2);
+		vector<int> sl;
+		for(auto surf : s) sl.push_back(surf.second);
+		int l = gmsh::model::geo::addSurfaceLoop(sl);
+		gmsh::model::geo::addVolume({l});
+		gmsh::model::geo::synchronize();
+		int f = gmsh::model::mesh::field::add("MathEval");
+		gmsh::model::mesh::field::setString(f, "F", "4");
+		gmsh::model::mesh::field::setAsBackgroundMesh(f);
+	}
+	if(informat=="stp"){
+		vector<pair<int, int> > v;
+		try {
+			gmsh::model::occ::importShapes(soubor, v);
+		} catch(...) {
+			gmsh::logger::write("Could not load STEP file: bye!");
+			gmsh::finalize();
+			return 0;
+		}
+		// Get the bounding box of the volume:
+		gmsh::model::occ::synchronize();
+		double xmin, ymin, zmin, xmax, ymax, zmax;
+		gmsh::model::getBoundingBox(v[0].first, v[0].second, xmin, ymin, zmin, xmax,
+			                              ymax, zmax);
 
-	  try {
-	    gmsh::merge(soubor);
-	  } catch(...) {
-	    gmsh::logger::write("Could not load file");
-	    gmsh::finalize();
-	    return false;
-	  }
-	  double angle = 40;
-	  bool forceParametrizablePatches = false;
-	  bool includeBoundary = true;
-	  double curveAngle = 180;
-	  gmsh::model::mesh::classifySurfaces(angle * M_PI / 180., includeBoundary,
-	                                      forceParametrizablePatches,
-	                                      curveAngle * M_PI / 180.);
-	  gmsh::model::mesh::createGeometry();
-	  vector<pair<int, int> > s;
-	  gmsh::model::getEntities(s, 2);
-	  vector<int> sl;
-	  for(auto surf : s) sl.push_back(surf.second);
-	  int l = gmsh::model::geo::addSurfaceLoop(sl);
-	  gmsh::model::geo::addVolume({l});
-	  gmsh::model::geo::synchronize();
-	  bool funny = true; // false;
-	  int f = gmsh::model::mesh::field::add("MathEval");
-	  if(funny)
-	    gmsh::model::mesh::field::setString(f, "F", "2*Sin((x+y)/5) + 3");
-	  else
-	    gmsh::model::mesh::field::setString(f, "F", "4");
-	  gmsh::model::mesh::field::setAsBackgroundMesh(f);
+		// We want to slice the model into N slices, and either keep the volume slices
+		// or just the surfaces obtained by the cutting:
 
-	  // settings of mesh
-	  //gmsh::option::setNumber("Mesh.CharacteristicLengthExtendFromBoundary", 10);
-	  //gmsh::option::setNumber("Mesh.CharacteristicLengthFromPoints", 0.5);
-	  //gmsh::option::setNumber("Mesh.CharacteristicLengthFromCurvature", 10);
-	  //gmsh::option::setNumber("Mesh.CharacteristicLengthMin", 1.4);
-	  //gmsh::option::setNumber("Mesh.CharacteristicLengthMax", 1.4);
-	  //gmsh::model::mesh::setTransfiniteAutomatic();
+		int N = 5; // Number of slices
+		string dir = "X"; // Direction: "X", "Y" or "Z"
 
-	  gmsh::model::mesh::generate(3);
+		double dx = (xmax - xmin);
+		double dy = (ymax - ymin);
+		double dz = (zmax - zmin);
+		double L = (dir == "X") ? dz : dx;
+		double H = (dir == "Y") ? dz : dy;
+			// Create the first cutting plane
+		vector<pair<int, int> > s;
+		s.push_back({2, gmsh::model::occ::addRectangle(xmin, ymin, zmin, L, H)});
+		if(dir == "X") {
+			gmsh::model::occ::rotate({s[0]}, xmin, ymin, zmin, 0, 1, 0, -M_PI/2);
+		}
+		else if(dir == "Y") {
+			gmsh::model::occ::rotate({s[0]}, xmin, ymin, zmin, 1, 0, 0, M_PI/2);
+		}
+		double tx = (dir == "X") ? dx / N : 0;
+		double ty = (dir == "Y") ? dy / N : 0;
+		double tz = (dir == "Z") ? dz / N : 0;
+		gmsh::model::occ::translate({s[0]}, tx, ty, tz);
 
-	  // Refined mesh
-	  //gmsh::model::mesh::recombine();
-	  //gmsh::option::setNumber("Mesh.SubdivisionAlgorithm", 1);
-	  //gmsh::model::mesh::refine();
-	  return true;
+		// Create the other cutting planes:
+		vector<pair<int, int> > tmp;
+		for(int i = 1; i < N - 1; i++) {
+			gmsh::model::occ::copy({s[0]}, tmp);
+			s.push_back(tmp[0]);
+			gmsh::model::occ::translate({s.back()}, i * tx, i * ty, i * tz);
+		}
+		// Fragment (i.e. intersect) the volume with all the cutting planes:
+		vector<pair<int, int> > ov;
+		vector<vector<pair<int, int> > > ovv;
+		gmsh::model::occ::fragment(v, s, ov, ovv);
+
+		gmsh::model::occ::synchronize();
+	}
+	// settings of mesh
+
+
+	//gmsh::option::setNumber("Mesh.CharacteristicLengthExtendFromBoundary", 0);
+
+	//gmsh::option::setNumber("Mesh.CharacteristicLengthFromPoints", 0.5);
+
+	//gmsh::option::setNumber("Mesh.CharacteristicLengthFromCurvature", 1);
+
+	//gmsh::option::setNumber("Mesh.CharacteristicLengthMin", 20);
+	//gmsh::option::setNumber("Mesh.CharacteristicLengthMax", 20);
+
+	//gmsh::option::setNumber("Mesh.Algorithm3D", 10);
+
+	//gmsh::option::setNumber("Mesh.SubdivisionAlgorithm", 3);
+
+	//gmsh::option::setNumber("Mesh.Optimize", 0);
+
+	//gmsh::option::setNumber("Mesh.OptimizeNetgen", 1);
+
+	//gmsh::option::setNumber("Mesh.MaxNumThreads3D", 4);
+	//gmsh::option::setNumber("Mesh.MaxNumThreads2D", 4);
+	//gmsh::option::setNumber("Mesh.MaxNumThreads1D", 4);
+
+	gmsh::model::mesh::generate(3);
+
+	// Refined mesh
+	//gmsh::model::mesh::recombine();
+	gmsh::model::mesh::refine();
+
+
+	return true;
 }
 
 void writeGMSH(string out){
@@ -214,7 +287,7 @@ void writeGMSH(string out){
 	    	string name;
 	        int d, order, numv, numpv;
 	        vector<double> param;
-	        gmsh::model::mesh::getElementProperties(elemTypes[j], name, d, order,numv, param, numpv);
+	        gmsh::model::mesh::getElementProperties(elemTypes[j], name, d, order,numv, param);
 	        form.push_back(make_pair(numElem,elemTypes[j]));
 	  }
 	}

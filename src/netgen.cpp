@@ -1,5 +1,6 @@
 
 #include <cstddef>
+#define OCCGEOMETRY
 
 namespace nglib{
 #include "nglib.h"
@@ -13,6 +14,8 @@ namespace nglib{
 #include <unistd.h>
 #include <fstream>
 #include <iomanip>
+
+#include <ctime>
 
 using namespace std;
 using namespace nglib;
@@ -33,6 +36,8 @@ static int check(Ng_Result result)
 
 int main(int argc, char **argv)
 {
+	clock_t start;
+	double duration;
 	int opt = 0;
 	string infile,outfile,informat,outformat,lib;
 	int library=0;
@@ -80,11 +85,11 @@ int main(int argc, char **argv)
 		//!< Switch to enable / disable usage of local mesh size modifiers
 	mp.uselocalh=true;
 		//!< Maximum global mesh size allowed
-	mp.maxh=2000.0;
+	mp.maxh;
 		//!< Minimum global mesh size allowed
-	mp.minh=0.0;
+	mp.minh;
 		//!< Mesh density: 0...1 (0 => coarse; 1 => fine)
-	mp.fineness=0.9;
+	mp.fineness;
 		//!< Mesh grading: 0...1 (0 => uniform mesh; 1 => aggressive local grading)
 	mp.grading;
 
@@ -94,12 +99,12 @@ int main(int argc, char **argv)
 	mp.elementspercurve;
 
 		//!< Enable / Disable mesh refinement at close edges
-	mp.closeedgeenable=true;
+	mp.closeedgeenable;
 		//!< Factor to use for refinement at close edges (larger => finer)
 	mp.closeedgefact;
 
 		//!< Enable / Disable user defined minimum edge length for edge subdivision
-	mp.minedgelenenable=true;
+	mp.minedgelenenable;
 		//!< Minimum edge length to use while subdividing the edges (default = 1e-4)
 	mp.minedgelen;
 
@@ -112,9 +117,9 @@ int main(int argc, char **argv)
 	mp.meshsize_filename;
 
 		//!< Enable / Disable automatic surface mesh optimization
-	mp.optsurfmeshenable=true;
+	mp.optsurfmeshenable;
 		//!< Enable / Disable automatic volume mesh optimization
-	mp.optvolmeshenable=true;
+	mp.optvolmeshenable;
 
 		//!< Number of optimize steps to use for 3-D mesh optimization
 	mp.optsteps_3d;
@@ -134,17 +139,34 @@ int main(int argc, char **argv)
 		//!< Check for overlapping surface elements before volume meshing
 	mp.check_overlapping_boundary;
 
+    start=clock();
 	Ng_Init();
 	Ng_Mesh *mesh = Ng_NewMesh();
+	mp.Transfer_Parameters();
 
-	Ng_STL_Geometry *geom = Ng_STL_LoadGeometry(file);
-	check(Ng_STL_InitSTLGeometry(geom));
-	check(Ng_STL_MakeEdges(geom, mesh, &mp));
-	check(Ng_STL_GenerateSurfaceMesh(geom, mesh, &mp));
-	check(Ng_GenerateVolumeMesh(mesh, &mp));
-
+	if(informat=="stl"){
+		Ng_STL_Geometry *geom = Ng_STL_LoadGeometry(file);
+		check(Ng_STL_InitSTLGeometry(geom));
+		check(Ng_STL_MakeEdges(geom, mesh, &mp));
+		check(Ng_STL_GenerateSurfaceMesh(geom, mesh, &mp));
+		check(Ng_GenerateVolumeMesh(mesh, &mp));
+	}
+	if(informat=="stp"){
+		Ng_OCC_Geometry *geom = Ng_OCC_Load_STEP(file);
+		check(Ng_OCC_SetLocalMeshSize(geom, mesh, &mp));
+		check(Ng_OCC_GenerateEdgeMesh(geom, mesh, &mp));
+		check(Ng_OCC_GenerateSurfaceMesh(geom, mesh, &mp));
+		check(Ng_GenerateVolumeMesh(mesh, &mp));
+	}
+	if(informat=="igs"){
+		Ng_OCC_Geometry *geom = Ng_OCC_Load_IGES(file);
+		check(Ng_OCC_SetLocalMeshSize(geom, mesh, &mp));
+		check(Ng_OCC_GenerateEdgeMesh(geom, mesh, &mp));
+		check(Ng_OCC_GenerateSurfaceMesh(geom, mesh, &mp));
+		check(Ng_GenerateVolumeMesh(mesh, &mp));
+		}
 	int points = Ng_GetNP(mesh), elements = Ng_GetNE(mesh);
-	//	elements = 2;
+
 	string save=outfile+"."+outformat;
 	ofstream sfile;
 	sfile.open(save);
@@ -163,41 +185,43 @@ int main(int argc, char **argv)
 
 	int element[NG_VOLUME_ELEMENT_MAXPOINTS], enodes = 0;
 	for (int e = 1; e <= elements; e++) {
-			switch (Ng_GetVolumeElement (mesh, e, element)) {
+		switch (Ng_GetVolumeElement (mesh, e, element)) {
 			case NG_TET: enodes += 4; break;
 			case NG_PYRAMID: enodes += 5; break;
 			case NG_PRISM: enodes += 6; break;
 			case NG_TET10: enodes += 10; break;
 			}
-		}
+	}
 
 	sfile << "CELLS " << elements << " " << elements + enodes << endl;
-		for (int e = 1; e <= elements; e++) {
-			switch (Ng_GetVolumeElement (mesh, e, element)) {
+	for (int e = 1; e <= elements; e++) {
+		switch (Ng_GetVolumeElement (mesh, e, element)) {
 			case NG_TET: enodes = 4; break;
 			case NG_PYRAMID: enodes = 5; break;
 			case NG_PRISM: enodes = 6; break;
 			case NG_TET10: enodes = 10; break;
-			}
-
-			sfile << enodes;
-			for (int en = 0; en < enodes; ++en) {
-				sfile << " " << element[en] - 1;
-			}
-			sfile << endl;
+		}
+		sfile << enodes;
+		for (int en = 0; en < enodes; ++en) {
+			sfile << " " << element[en] - 1;
 		}
 		sfile << endl;
+	}
+	sfile << endl;
 
-		sfile << "CELL_TYPES " << elements << endl;
-		for (int e = 1; e <= elements; e++) {
-			switch (Ng_GetVolumeElement (mesh, e, element)) {
+	sfile << "CELL_TYPES " << elements << endl;
+	for (int e = 1; e <= elements; e++) {
+		switch (Ng_GetVolumeElement (mesh, e, element)) {
 			case NG_TET: sfile << "10" << endl; break;
 			case NG_PYRAMID: sfile << "14" << endl;; break;
 			case NG_PRISM: sfile << "13" << endl; break;
 			case NG_TET10: sfile << "24" << endl; break;
-			}
 		}
-		return 0;
+	}
+	cout<<"nodes: "<<points<<"\n elements: "<<elements<<endl;
+	duration=(clock()-start)/(double) CLOCKS_PER_SEC;
+	cout<<"Doba meshe: "<<duration<<endl;
+	return 0;
 
 }
 
