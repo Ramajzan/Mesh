@@ -239,7 +239,7 @@ bool meshGMSH(string soubor , string informat){
 
 	// Refined mesh
 	//gmsh::model::mesh::recombine();
-	gmsh::model::mesh::refine();
+	//gmsh::model::mesh::refine();
 
 
 	return true;
