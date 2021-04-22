@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 	mp.grading;
 
 		//!< Number of elements to generate per edge of the geometry
-	mp.elementsperedge;
+	mp.elementsperedge=8;
 		//!< Elements to generate per curvature radius
 	mp.elementspercurve;
 
@@ -151,7 +151,7 @@ int main(int argc, char **argv)
 		check(Ng_STL_GenerateSurfaceMesh(geom, mesh, &mp));
 		check(Ng_GenerateVolumeMesh(mesh, &mp));
 	}
-	if(informat=="stp"){
+	if(informat=="stp" || informat=="step"){
 		Ng_OCC_Geometry *geom = Ng_OCC_Load_STEP(file);
 		check(Ng_OCC_SetLocalMeshSize(geom, mesh, &mp));
 		check(Ng_OCC_GenerateEdgeMesh(geom, mesh, &mp));
@@ -166,6 +166,8 @@ int main(int argc, char **argv)
 		check(Ng_GenerateVolumeMesh(mesh, &mp));
 		}
 	int points = Ng_GetNP(mesh), elements = Ng_GetNE(mesh);
+	duration=(clock()-start)/(double) CLOCKS_PER_SEC;
+	cout<<"Doba meshe: "<<duration<<endl;
 
 	string save=outfile+"."+outformat;
 	ofstream sfile;

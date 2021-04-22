@@ -107,6 +107,8 @@ int main(int argc, char **argv)
         default:
             cout<<"Wrong chose";
     }
+    duration=(clock()-start)/(double) CLOCKS_PER_SEC;
+    cout<<"Doba meshe: "<<duration<<endl;
 
     if (end == true){
     	    string save=outfile+"."+outformat;
@@ -157,7 +159,7 @@ bool meshGMSH(string soubor , string informat){
 		gmsh::model::mesh::field::setString(f, "F", "4");
 		gmsh::model::mesh::field::setAsBackgroundMesh(f);
 	}
-	if(informat=="stp"){
+	if(informat=="stp" || informat=="step" || informat=="igs"){
 		vector<pair<int, int> > v;
 		try {
 			gmsh::model::occ::importShapes(soubor, v);
@@ -171,61 +173,22 @@ bool meshGMSH(string soubor , string informat){
 		double xmin, ymin, zmin, xmax, ymax, zmax;
 		gmsh::model::getBoundingBox(v[0].first, v[0].second, xmin, ymin, zmin, xmax,
 			                              ymax, zmax);
-
-		// We want to slice the model into N slices, and either keep the volume slices
-		// or just the surfaces obtained by the cutting:
-
-		int N = 5; // Number of slices
-		string dir = "X"; // Direction: "X", "Y" or "Z"
-
-		double dx = (xmax - xmin);
-		double dy = (ymax - ymin);
-		double dz = (zmax - zmin);
-		double L = (dir == "X") ? dz : dx;
-		double H = (dir == "Y") ? dz : dy;
-			// Create the first cutting plane
-		vector<pair<int, int> > s;
-		s.push_back({2, gmsh::model::occ::addRectangle(xmin, ymin, zmin, L, H)});
-		if(dir == "X") {
-			gmsh::model::occ::rotate({s[0]}, xmin, ymin, zmin, 0, 1, 0, -M_PI/2);
-		}
-		else if(dir == "Y") {
-			gmsh::model::occ::rotate({s[0]}, xmin, ymin, zmin, 1, 0, 0, M_PI/2);
-		}
-		double tx = (dir == "X") ? dx / N : 0;
-		double ty = (dir == "Y") ? dy / N : 0;
-		double tz = (dir == "Z") ? dz / N : 0;
-		gmsh::model::occ::translate({s[0]}, tx, ty, tz);
-
-		// Create the other cutting planes:
-		vector<pair<int, int> > tmp;
-		for(int i = 1; i < N - 1; i++) {
-			gmsh::model::occ::copy({s[0]}, tmp);
-			s.push_back(tmp[0]);
-			gmsh::model::occ::translate({s.back()}, i * tx, i * ty, i * tz);
-		}
-		// Fragment (i.e. intersect) the volume with all the cutting planes:
-		vector<pair<int, int> > ov;
-		vector<vector<pair<int, int> > > ovv;
-		gmsh::model::occ::fragment(v, s, ov, ovv);
-
 		gmsh::model::occ::synchronize();
 	}
 	// settings of mesh
 
+	//gmsh::option::setNumber("Mesh.CharacteristicLengthExtendFromBoundary", 2);
 
-	//gmsh::option::setNumber("Mesh.CharacteristicLengthExtendFromBoundary", 0);
+	//gmsh::option::setNumber("Mesh.CharacteristicLengthFromPoints", 0.9);
 
-	//gmsh::option::setNumber("Mesh.CharacteristicLengthFromPoints", 0.5);
+	//gmsh::option::setNumber("Mesh.CharacteristicLengthFromCurvature", 20);
 
-	//gmsh::option::setNumber("Mesh.CharacteristicLengthFromCurvature", 1);
+	//gmsh::option::setNumber("Mesh.CharacteristicLengthMin", 2);
+	//gmsh::option::setNumber("Mesh.CharacteristicLengthMax", 2);
 
-	//gmsh::option::setNumber("Mesh.CharacteristicLengthMin", 20);
-	//gmsh::option::setNumber("Mesh.CharacteristicLengthMax", 20);
+	//gmsh::option::setNumber("Mesh.Algorithm3D", 7);
 
-	//gmsh::option::setNumber("Mesh.Algorithm3D", 10);
-
-	//gmsh::option::setNumber("Mesh.SubdivisionAlgorithm", 3);
+	//gmsh::option::setNumber("Mesh.SubdivisionAlgorithm", 1);
 
 	//gmsh::option::setNumber("Mesh.Optimize", 0);
 
@@ -238,8 +201,10 @@ bool meshGMSH(string soubor , string informat){
 	gmsh::model::mesh::generate(3);
 
 	// Refined mesh
+
 	//gmsh::model::mesh::recombine();
-	gmsh::model::mesh::refine();
+
+	//gmsh::model::mesh::refine();
 
 
 	return true;
