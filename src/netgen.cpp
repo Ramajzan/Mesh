@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 	mp.grading;
 
 		//!< Number of elements to generate per edge of the geometry
-	mp.elementsperedge=8;
+	mp.elementsperedge;
 		//!< Elements to generate per curvature radius
 	mp.elementspercurve;
 
@@ -165,6 +165,10 @@ int main(int argc, char **argv)
 		check(Ng_OCC_GenerateSurfaceMesh(geom, mesh, &mp));
 		check(Ng_GenerateVolumeMesh(mesh, &mp));
 		}
+
+	// Refined mesh
+	//Ng_Uniform_Refinement(mesh);
+
 	int points = Ng_GetNP(mesh), elements = Ng_GetNE(mesh);
 	duration=(clock()-start)/(double) CLOCKS_PER_SEC;
 	cout<<"Doba meshe: "<<duration<<endl;

@@ -94,7 +94,10 @@ int main(int argc, char **argv)
 
        	  	tetgenbehavior tetgen;
        	  	tetgen.object=tetgenbehavior::STL;
-
+       	  	//tetgen.usage();
+       	  	//char *hlp;
+       	  	//strcpy(hlp,"q1.414");
+       	  	//bool h=tetgen.parse_commandline(hlp);
        	  	// Settings of mesh
        	  	//tetgen.plc=1;
        	  	//tetgen.quality=1;
